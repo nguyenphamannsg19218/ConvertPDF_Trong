@@ -1,0 +1,195 @@
+# ===================================================================
+# .gitignore toàn diện cho các dự án Python, Web và hơn thế nữa
+# Được tạo bởi cộng đồng và tổng hợp từ nhiều nguồn uy tín.
+#
+# Cú pháp:
+# - Dòng trống hoặc dòng bắt đầu bằng # sẽ được bỏ qua.
+# - Dấu / ở cuối để chỉ định thư mục.
+# - Dấu ! ở đầu để không bỏ qua một file/thư mục dù nó khớp với mẫu trước đó.
+# ===================================================================
+
+
+# === Dành riêng cho dự án Converter PDF của bạn ===
+# Thư mục chứa file do người dùng tải lên và file kết quả
+# Những file này được tạo ra trong quá trình chạy, không phải là mã nguồn.
+uploads/
+outputs/
+
+
+# === Môi trường ảo Python (Virtual Environments) ===
+# Không bao giờ commit môi trường ảo của bạn.
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+
+# === Tệp biên dịch và bộ đệm của Python (Bytecode and Caches) ===
+# Các file này được Python tự động tạo ra để tăng tốc độ.
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+
+
+# === Phân phối / Đóng gói (Distribution / Packaging) ===
+# Các thư mục và file được tạo ra khi bạn build hoặc publish package.
+.eggs/
+*.egg-info/
+*.egg
+dist/
+build/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.manifest
+*.spec
+
+
+# === Công cụ Test và Báo cáo Coverage ===
+# Kết quả test và báo cáo không phải là mã nguồn.
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+nosetests.xml
+coverage.xml
+*,cover
+.hypothesis/
+
+
+# === Flask / Django ===
+# Các file đặc thù của framework.
+instance/
+.webassets-cache
+/static/assets/
+*.sqlite3
+*.db
+
+
+# === Jupyter Notebook ===
+# Các checkpoint không cần thiết.
+.ipynb_checkpoints
+
+
+# === Cấu hình IDE và Editor ===
+# Mỗi lập trình viên có cấu hình riêng, không nên commit.
+
+# VsCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
+
+# PyCharm
+.idea/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Atom
+.atom/
+
+# Vim
+*.swp
+*.swo
+*~
+*.swx
+
+
+# === File hệ điều hành (OS generated files) ===
+# Các file rác do hệ điều hành tạo ra.
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+ntuser.dat
+ntuser.dat.log*
+
+# Linux
+*~
+.directory
+
+
+# === File log và Dữ liệu tạm thời (Logs and Temp Data) ===
+# Log nên được quản lý ở nơi khác, không phải trong Git.
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+tmp/
+temp/
+
+
+# === File chứa thông tin nhạy cảm (Secrets and Credentials) ===
+# CỰC KỲ QUAN TRỌNG: Không bao giờ commit các file này.
+# Luôn sử dụng file .env.example để làm mẫu.
+.env
+.env.*
+!.env.example
+
+# Các file credentials phổ biến
+credentials.json
+client_secret.json
+secrets.yml
+config.py
+*.pem
+*.key
+id_rsa
+.aws/
+.boto
+*.p12
+
+# Firebase
+firebase-debug.log
+
+
+# === Các công cụ Frontend (nếu có) ===
+# Không commit các thư viện của bên thứ ba.
+node_modules/
+jspm_packages/
+bower_components/
+package-lock.json  # Tùy chọn: một số team commit file này, một số không.
+yarn.lock          # Tùy chọn: tương tự package-lock.json.
+
+
+# === File nén và Database Dumps ===
+# Thường là file lớn và được tạo ra, không phải mã nguồn.
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+*.sql
+*.sql.gz
+*.dump
+
+
+# === Tài liệu (Documentation) ===
+# Bỏ qua thư mục build của các công cụ tạo tài liệu.
+# Sphinx
+docs/_build/
+# MkDocs
+site/
