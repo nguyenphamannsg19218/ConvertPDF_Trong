@@ -1,1 +1,4 @@
-
+streamlit
+pdf2docx
+pdf2image
+Pillow
