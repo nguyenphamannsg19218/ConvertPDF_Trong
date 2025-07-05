@@ -1,1 +1,1 @@
-pandoc
+poppler-utils
