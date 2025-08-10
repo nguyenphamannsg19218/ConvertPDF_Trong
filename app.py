@@ -1,71 +1,121 @@
 import streamlit as st
+from pdf2docx import Converter
+from pdf2image import convert_from_bytes
+from docx import Document
+from docx.shared import Inches
+from io import BytesIO
 import tempfile
 import os
-import subprocess
-from marker.convert import convert_single_pdf
-from PIL import Image
-import pytesseract
-import pdfplumber
-import io
+import time
 
-# Set path cho Tesseract
-pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+st.set_page_config(page_title="PDF → Word Converter", layout="centered")
 
-st.title("Chuyển PDF Sang Word - Hỗ Trợ Công Thức Toán Dạng Ảnh Chụp")
+st.title("📄 ➜ 📝 PDF → Word (2 chế độ: Visual / Text)")
+st.markdown("Chọn chế độ **Visual** để giữ nguyên công thức dưới dạng ảnh (khuyến nghị cho PDF có công thức). Chọn **Text** để xuất text (có thể mất công thức/phức tạp).")
 
-# Tải lên file PDF
-uploaded_file = st.file_uploader("Tải lên file PDF", type="pdf")
+mode = st.radio("Chọn chế độ chuyển đổi:", ("Visual (ảnh, giữ nguyên bố cục)", "Text (pdf2docx)"))
+
+uploaded_file = st.file_uploader("Tải lên file PDF", type=["pdf"])
+quality = st.slider("Độ phân giải ảnh khi dùng chế độ Visual (dpi)", min_value=100, max_value=400, value=200)
+max_pages = st.number_input("Số trang tối đa (0 = tất cả)", min_value=0, value=0, step=1)
 
 if uploaded_file is not None:
-    try:
-        with st.spinner("Đang xử lý PDF..."):
-            # Tạo thư mục tạm
-            with tempfile.TemporaryDirectory() as temp_dir:
-                pdf_path = os.path.join(temp_dir, "input.pdf")
-                with open(pdf_path, "wb") as f:
-                    f.write(uploaded_file.getvalue())
+    # Hiển thị thông tin file
+    file_size_kb = len(uploaded_file.getvalue()) // 1024
+    st.write(f"**Tên file:** {uploaded_file.name} — **Kích thước:** {file_size_kb} KB")
 
-                # Chuyển PDF sang markdown với marker (OCR toàn bộ, hỗ trợ math)
+    if st.button("Bắt đầu chuyển đổi"):
+        start_time = time.time()
+        fname = os.path.splitext(uploaded_file.name)[0]
+        if mode.startswith("Visual"):
+            st.info("Chế độ Visual: sẽ render từng trang thành ảnh rồi chèn vào .docx")
+            try:
+                with st.spinner("Đang render PDF thành ảnh... (cần poppler trên hệ thống)"):
+                    # convert_from_bytes returns PIL Image list
+                    # respect max_pages if >0
+                    pdf_bytes = uploaded_file.getvalue()
+                    images = convert_from_bytes(pdf_bytes, dpi=quality)
+                    if max_pages and max_pages > 0:
+                        images = images[:max_pages]
+                st.success(f"Đã render {len(images)} trang thành ảnh.")
+            except Exception as e:
+                st.error(f"Lỗi khi render PDF: {e}")
+                raise
+
+            # Tạo docx và chèn từng ảnh
+            doc = Document()
+            # Optional: set page margins or style if needed
+            tmp_docx = BytesIO()
+            progress = st.progress(0)
+            for i, img in enumerate(images, start=1):
+                # save image to BytesIO as PNG to then insert
+                img_byte = BytesIO()
+                img.save(img_byte, format="PNG")
+                img_byte.seek(0)
+
+                # Add a page break before second+ pages to keep pages separate
+                if i > 1:
+                    doc.add_page_break()
+
+                # Insert image: adjust width to page width approx (use Inches)
+                # typical Word page width minus margins ~ 6.5 inches -> adjust to fit
                 try:
-                    full_text, images, out_meta = convert_single_pdf(pdf_path, ocr_all_pages=True)
-                except Exception as e:
-                    st.warning(f"Lỗi marker: {e}. Chuyển sang OCR fallback...")
-                    full_text = ""
+                    doc.add_picture(img_byte, width=Inches(6.8))
+                except Exception:
+                    # fallback without width
+                    doc.add_picture(img_byte)
 
-                # Fallback OCR bằng pytesseract nếu marker không trích xuất được
-                if not full_text.strip():
-                    fallback_text = ""
-                    with pdfplumber.open(pdf_path) as pdf:
-                        for page in pdf.pages:
-                            if not page.extract_text():
-                                page_image = page.to_image(resolution=150).original
-                                ocr_text = pytesseract.image_to_string(page_image, lang='eng+vie')
-                                fallback_text += ocr_text + "\n"
-                    full_text = fallback_text
+                progress.progress(int(i / len(images) * 100))
 
-                # Lưu markdown tạm
-                md_path = os.path.join(temp_dir, "output.md")
-                with open(md_path, "w", encoding="utf-8") as f:
-                    f.write(full_text)
+            # Save to bytes
+            doc_stream = BytesIO()
+            doc.save(doc_stream)
+            doc_stream.seek(0)
 
-                # Chuyển markdown sang docx bằng pandoc
-                docx_path = os.path.join(temp_dir, "output.docx")
-                subprocess.run(
-                    ["pandoc", md_path, "-o", docx_path, "--from=markdown+tex_math_dollars", "--to=docx"],
-                    check=True
+            st.success("Hoàn thành chuyển đổi (Visual → .docx).")
+            elapsed = time.time() - start_time
+            st.write(f"Thời gian: {elapsed:.1f}s")
+
+            st.download_button(
+                label="Tải về file .docx (Visual)",
+                data=doc_stream,
+                file_name=f"{fname}_visual.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+
+        else:
+            # Text mode: use pdf2docx
+            st.info("Chế độ Text: dùng pdf2docx để convert sang docx (có thể không giữ chính xác công thức).")
+            try:
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    pdf_path = os.path.join(tmpdir, "input.pdf")
+                    out_path = os.path.join(tmpdir, "output.docx")
+                    # write uploaded bytes to file
+                    with open(pdf_path, "wb") as f:
+                        f.write(uploaded_file.getvalue())
+
+                    converter = Converter(pdf_path)
+                    # if user wants limit pages
+                    if max_pages and max_pages > 0:
+                        converter.convert(out_path, start=0, end=max_pages-1)
+                    else:
+                        converter.convert(out_path)
+                    converter.close()
+
+                    # read output
+                    with open(out_path, "rb") as f:
+                        docx_bytes = f.read()
+
+                st.success("Hoàn thành chuyển đổi (Text → .docx).")
+                elapsed = time.time() - start_time
+                st.write(f"Thời gian: {elapsed:.1f}s")
+
+                st.download_button(
+                    label="Tải về file .docx (Text)",
+                    data=docx_bytes,
+                    file_name=f"{fname}_text.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
 
-                # Tải xuống file Word
-                with open(docx_path, "rb") as f:
-                    st.download_button(
-                        label="Tải File Word (.docx)",
-                        data=f,
-                        file_name="converted.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    )
-
-        st.success("Chuyển đổi hoàn tất! Công thức toán dạng ảnh đã được OCR và chuyển sang equation trong Word.")
-
-    except Exception as e:
-        st.error(f"Lỗi khi xử lý: {e}")
-        st.info("Kiểm tra logs trên Streamlit Cloud hoặc đảm bảo requirements và packages đã cập nhật.")
+            except Exception as e:
+                st.error(f"Lỗi khi convert bằng pdf2docx: {e}")
