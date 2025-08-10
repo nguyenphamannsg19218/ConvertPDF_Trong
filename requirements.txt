@@ -2,3 +2,5 @@ streamlit
 pdf2docx
 pdf2image
 Pillow
+streamlit==1.38.0
+pdfplumber==0.11.4
