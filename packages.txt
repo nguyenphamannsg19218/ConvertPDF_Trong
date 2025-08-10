@@ -1,6 +1,5 @@
-poppler-utils
 tesseract-ocr
 tesseract-ocr-eng
-tesseract-ocr-vie  # Nếu cần tiếng Việt
-texlive
+tesseract-ocr-vie
 imagemagick
+texlive
