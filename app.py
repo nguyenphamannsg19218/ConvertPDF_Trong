@@ -1,122 +1,174 @@
-import streamlit as st
+import pdfplumber
+from docx import Document
+from docx.shared import Pt
+from docx.oxml.ns import qn
+import re
 import os
-import uuid
-from pdf2docx import Converter
+import latex2mathml.converter
+from lxml import etree
+from PIL import Image
+import pytesseract
+import io
+import tempfile
 
-# --- CẤU HÌNH TRANG VÀ TIÊU ĐỀ ---
-st.set_page_config(
-    page_title="PDF sang Word",
-    page_icon="📄",
-    layout="centered",
-    initial_sidebar_state="auto"
-)
-
-# --- CSS TÙY CHỈNH (TÙY CHỌN) ĐỂ GIAO DIỆN ĐẸP HƠN ---
-st.markdown("""
-<style>
-    /* Chỉnh sửa kiểu nút */
-    .stButton>button {
-        background-color: #4CAF50;
-        color: white;
-        border: none;
-        padding: 15px 32px;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 16px;
-        margin: 4px 2px;
-        cursor: pointer;
-        border-radius: 12px;
-        width: 100%;
-    }
-    .stButton>button:hover {
-        background-color: #45a049;
-    }
-    /* Chỉnh sửa kiểu nút tải xuống */
-    .stDownloadButton>button {
-        background-color: #008CBA;
-        color: white;
-        border: none;
-        padding: 15px 32px;
-        text-align: center;
-        font-size: 16px;
-        border-radius: 12px;
-        width: 100%;
-    }
-    .stDownloadButton>button:hover {
-        background-color: #007B9E;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-
-# --- TIÊU ĐỀ VÀ MÔ TẢ ỨNG DỤNG ---
-st.title("Chuyển đổi PDF sang Word (DOCX)")
-st.write("Tải lên tệp PDF của bạn để chuyển đổi nó thành một tài liệu Word có thể chỉnh sửa.")
-st.markdown("---") # Đường kẻ ngang phân cách
-
-# --- KHU VỰC TẢI FILE LÊN ---
-uploaded_file = st.file_uploader(
-    "1. Kéo và thả hoặc nhấn để chọn tệp PDF",
-    type=["pdf"],
-    help="Chỉ chấp nhận các tệp có định dạng .pdf"
-)
-
-# Kiểm tra xem người dùng đã tải file lên chưa
-if uploaded_file is not None:
-    # Lấy tên file gốc
-    original_filename = uploaded_file.name
-    st.info(f"📁 Tệp đã chọn: **{original_filename}**")
-
-    # --- NÚT BẮT ĐẦU CHUYỂN ĐỔI ---
-    if st.button("🚀 Bắt đầu chuyển đổi"):
-        # Tạo thư mục tạm thời để lưu file, tránh xung đột
-        temp_dir = "temp_files"
-        os.makedirs(temp_dir, exist_ok=True)
+def extract_latex_formulas(text):
+    """
+    Extract LaTeX formulas from text using regex patterns.
+    
+    Args:
+        text (str): Input text containing LaTeX formulas.
+    
+    Returns:
+        list: List of tuples (is_formula, content) where is_formula indicates if content is LaTeX.
+    """
+    inline_pattern = r'\$(.*?)\$'
+    display_pattern = r'\$\$(.*?)\$\$|\[(.*?)\]'
+    
+    segments = []
+    last_pos = 0
+    
+    for match in re.finditer(f'({inline_pattern})|({display_pattern})', text, re.DOTALL):
+        start, end = match.span()
+        if start > last_pos:
+            segments.append((False, text[last_pos:start]))
         
-        # Tạo một đường dẫn duy nhất cho file PDF tải lên
-        pdf_path = os.path.join(temp_dir, f"{uuid.uuid4()}_{original_filename}")
+        formula = match.group(1) or match.group(3) or match.group(4)
+        if formula:
+            formula = formula.strip('$[]')
+            segments.append((True, formula))
         
-        # Lưu file PDF tải lên vào máy chủ tạm thời
-        with open(pdf_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+        last_pos = end
+    
+    if last_pos < len(text):
+        segments.append((False, text[last_pos:]))
+    
+    return segments
 
-        # Hiển thị thanh tiến trình
-        with st.spinner('🧙‍♂️ Đang thực hiện phép thuật... Vui lòng chờ trong giây lát!'):
-            try:
-                # Tạo tên file DOCX đầu ra
-                docx_filename = f"{os.path.splitext(original_filename)[0]}.docx"
-                docx_path = os.path.join(temp_dir, docx_filename)
+def latex_to_mathml(latex):
+    """
+    Convert LaTeX formula to MathML.
+    
+    Args:
+        latex (str): LaTeX formula string.
+    
+    Returns:
+        str: MathML string or None if conversion fails.
+    """
+    try:
+        mathml = latex2mathml.converter.convert(latex)
+        return mathml
+    except Exception as e:
+        print(f"Error converting LaTeX to MathML: {str(e)}")
+        return None
 
-                # --- LÕI CHUYỂN ĐỔI ---
-                cv = Converter(pdf_path)
-                cv.convert(docx_path, start=0, end=None)
-                cv.close()
+def add_mathml_to_doc(doc, mathml):
+    """
+    Add MathML content to a Word document.
+    
+    Args:
+        doc: python-docx Document object.
+        mathml (str): MathML string to add.
+    """
+    try:
+        mathml_tree = etree.fromstring(mathml)
+        paragraph = doc.add_paragraph()
+        run = paragraph.add_run()
+        omath = etree.Element('{http://schemas.openxmlformats.org/officeDocument/2006/math}oMath')
+        omath.append(mathml_tree)
+        run._element.append(omath)
+    except Exception as e:
+        print(f"Error adding MathML to document: {str(e)}")
 
-                # Đọc file DOCX đã được tạo vào bộ nhớ
-                with open(docx_path, 'rb') as docx_file:
-                    docx_bytes = docx_file.read()
+def extract_latex_from_image(image):
+    """
+    Extract LaTeX code from an image using Tesseract OCR.
+    
+    Args:
+        image: PIL Image object.
+    
+    Returns:
+        str: Extracted LaTeX code or None if extraction fails.
+    """
+    try:
+        # Preprocess image for better OCR results
+        image = image.convert('L')  # Convert to grayscale
+        image = image.point(lambda x: 0 if x < 128 else 255, '1')  # Binarize
+        
+        # Perform OCR
+        latex = pytesseract.image_to_string(image, lang='eng', config='--psm 6')
+        
+        # Clean up extracted text to identify LaTeX
+        latex = latex.strip()
+        if latex:
+            return latex
+        return None
+    except Exception as e:
+        print(f"Error extracting LaTeX from image: {str(e)}")
+        return None
 
-                # Hiển thị thông báo thành công
-                st.success("🎉 Chuyển đổi thành công!")
-                st.balloons()
+def convert_pdf_to_word(pdf_path, word_path):
+    """
+    Convert a PDF file to a Word document, preserving LaTeX formulas (text and image-based).
+    
+    Args:
+        pdf_path (str): Path to the input PDF file.
+        word_path (str): Path to save the output Word document.
+    """
+    try:
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError(f"PDF file not found at: {pdf_path}")
 
-                # --- NÚT TẢI FILE XUỐNG ---
-                st.download_button(
-                    label="📥 Tải xuống tệp Word (.docx)",
-                    data=docx_bytes,
-                    file_name=docx_filename,
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                )
+        doc = Document()
+        
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                # Extract text
+                text = page.extract_text()
+                if text:
+                    segments = extract_latex_formulas(text)
+                    for is_formula, content in segments:
+                        if is_formula:
+                            mathml = latex_to_mathml(content)
+                            if mathml:
+                                add_mathml_to_doc(doc, mathml)
+                        else:
+                            paragraph = doc.add_paragraph()
+                            run = paragraph.add_run(content)
+                            run.font.name = 'Times New Roman'
+                            run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Times New Roman')
+                            run.font.size = Pt(12)
+                
+                # Extract images and process for potential LaTeX formulas
+                if hasattr(page, 'images') and page.images:
+                    for img in page.images:
+                        # Extract image from PDF
+                        x0, y0, x1, y1 = img['x0'], img['top'], img['x1'], img['bottom']
+                        img_crop = page.crop((x0, y0, x1, y1)).to_image(resolution=300)
+                        img_pil = img_crop.original
+                        
+                        # Try to extract LaTeX from image
+                        latex = extract_latex_from_image(img_pil)
+                        if latex:
+                            mathml = latex_to_mathml(latex)
+                            if mathml:
+                                add_mathml_to_doc(doc, mathml)
+        
+        # Save the Word document
+        doc.save(word_path)
+        print(f"Conversion successful! Word document saved at: {word_path}")
+        
+    except Exception as e:
+        print(f"Error during conversion: {str(e)}")
 
-                # Dọn dẹp file tạm sau khi hoàn tất
-                os.remove(pdf_path)
-                os.remove(docx_path)
+def main():
+    pdf_path = input("Enter the path to the PDF file: ")
+    word_path = input("Enter the path to save the Word file (e.g., output.docx): ")
+    
+    output_dir = os.path.dirname(word_path)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    convert_pdf_to_word(pdf_path, word_path)
 
-            except Exception as e:
-                st.error(f"❌ Đã xảy ra lỗi trong quá trình chuyển đổi:")
-                st.error(e)
-
-# --- Chân trang ---
-st.markdown("---")
-st.markdown("Được tạo bằng ❤️ với [Streamlit](https://streamlit.io).")
+if __name__ == "__main__":
+    main()
