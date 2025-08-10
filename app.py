@@ -26,7 +26,11 @@ if uploaded_file is not None:
                     f.write(uploaded_file.getvalue())
 
                 # Chuyển PDF sang markdown với marker (OCR toàn bộ, hỗ trợ math)
-                full_text, images, out_meta = convert_single_pdf(pdf_path, ocr_all_pages=True)
+                try:
+                    full_text, images, out_meta = convert_single_pdf(pdf_path, ocr_all_pages=True)
+                except Exception as e:
+                    st.warning(f"Lỗi marker: {e}. Chuyển sang OCR fallback...")
+                    full_text = ""
 
                 # Fallback OCR bằng pytesseract nếu marker không trích xuất được
                 if not full_text.strip():
