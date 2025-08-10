@@ -1,11 +1,10 @@
 streamlit
 pdf2docx
 pdf2image
-Pillow
 streamlit==1.38.0
 pdfplumber==0.11.4
 latex2mathml==3.77.0
-pytesseract==0.3.13
+pytesseract
 pillow==11.3.0  # Phụ thuộc của pytesseract
 lxml==5.3.0     # Nếu cần cho latex2mathml
 tesseract-ocr
