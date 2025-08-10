@@ -3,4 +3,4 @@ tesseract-ocr-eng
 tesseract-ocr-vie
 imagemagick
 texlive
-pandoc  # Thêm để chuyển markdown sang docx, hỗ trợ math equations
+pandoc
