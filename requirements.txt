@@ -5,3 +5,11 @@ Pillow
 streamlit==1.38.0
 pdfplumber==0.11.4
 latex2mathml==3.77.0
+pytesseract==0.3.13
+pillow==11.3.0  # Phụ thuộc của pytesseract
+lxml==5.3.0     # Nếu cần cho latex2mathml
+tesseract-ocr
+tesseract-ocr-eng
+tesseract-ocr-vie  # Nếu cần tiếng Việt
+texlive            # Nếu dùng latex2mathml
+imagemagick        # Nếu dùng pdfplumber với hình ảnh
