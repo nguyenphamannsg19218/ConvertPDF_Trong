@@ -1,4 +1,44 @@
+import streamlit as st
 import pdfplumber
+import latex2mathml.converter
+import pytesseract
+from PIL import Image
+import io
+
+# Set path cho Tesseract
+pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+
+st.title("Ứng Dụng Convert PDF với OCR và MathML")
+
+# Tải file PDF
+uploaded_file = st.file_uploader("Tải lên file PDF", type="pdf")
+if uploaded_file is not None:
+    try:
+        with pdfplumber.open(uploaded_file) as pdf:
+            text = ""
+            for page in pdf.pages:
+                text += page.extract_text() or ""
+        st.subheader("Nội dung PDF (không OCR)")
+        st.text(text)
+
+        # OCR trên trang đầu
+        page_image = pdf.pages[0].to_image(resolution=150).original
+        ocr_text = pytesseract.image_to_string(page_image, lang='eng+vie')
+        st.subheader("Nội dung OCR từ Hình Ảnh")
+        st.text(ocr_text)
+    except Exception as e:
+        st.error(f"Lỗi khi xử lý PDF: {e}")
+
+# Chuyển LaTeX sang MathML
+latex_input = st.text_input("Nhập công thức LaTeX:", r"\frac{1}{2} \times \sqrt{x^2 + y^2}")
+if latex_input:
+    try:
+        mathml_output = latex2mathml.converter.convert(latex_input)
+        st.subheader("MathML Output")
+        st.write(mathml_output)
+    except Exception as e:
+        st.error(f"Lỗi khi chuyển LaTeX: {e}")
+        import pdfplumber
 from docx import Document
 from docx.shared import Pt
 from docx.oxml.ns import qn
@@ -10,7 +50,6 @@ from PIL import Image
 import pytesseract
 import io
 import tempfile
-
 def extract_latex_formulas(text):
     """
     Extract LaTeX formulas from text using regex patterns.
