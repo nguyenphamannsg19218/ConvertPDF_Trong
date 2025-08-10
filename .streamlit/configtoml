@@ -1,134 +1,22 @@
-# ===================================================================
-# pyproject.toml for the PDF Converter Flask App
-#
-# Đây là file cấu hình trung tâm cho dự án, quản lý mọi thứ từ
-# metadata, dependencies, đến các công cụ phát triển.
-# ===================================================================
+[runner]
+magicEnabled = true
+installTracerEnabled = false
+fixMatplotlib = true
 
-# [1] Cấu hình hệ thống build (Bắt buộc)
-# Chỉ định cho pip biết cách để build dự án của bạn.
-# Setuptools là lựa chọn phổ biến và mạnh mẽ.
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = false
+port = 8501
 
+[client]
+caching = true
+displayEnabled = true
 
-# [2] Metadata của dự án (PEP 621)
-# Thông tin cốt lõi về package của bạn. Quan trọng khi bạn muốn chia sẻ
-# hoặc publish dự án lên PyPI.
-[project]
-name = "pdf-converter-app"
-version = "0.1.0"
-description = "Một ứng dụng web Flask đơn giản để chuyển đổi file PDF sang DOCX và JPG."
-readme = "README.md"  # File README mô tả dự án
-authors = [
-  { name = "Tên Của Bạn", email = "ban@email.com" },
-]
-license = { file = "LICENSE" } # Nên thêm một file LICENSE (ví dụ: MIT)
-requires-python = ">=3.8"
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Framework :: Flask",
-    "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Topic :: Text Processing :: General",
-    "Topic :: Utilities",
-]
-keywords = ["pdf", "converter", "flask", "docx", "jpg", "pdf2docx", "pdf2image"]
-
-# --- Dependencies cốt lõi (Tương đương requirements.txt) ---
-# Các thư viện cần thiết để ứng dụng chạy.
-dependencies = [
-    "Flask",
-    "pdf2docx",
-    "pdf2image",
-    "Pillow",       # pdf2image yêu cầu thư viện này
-    "werkzeug",     # Thư viện cốt lõi của Flask
-]
-# LƯU Ý: Poppler là một dependency hệ thống, không phải package Python,
-# nên không thể liệt kê ở đây. Cần cài đặt thủ công.
-
-
-# [3] Các đường dẫn URL liên quan đến dự án
-[project.urls]
-Homepage = "https://github.com/ten-cua-ban/pdf-converter-app" # Thay bằng URL repo của bạn
-Repository = "https://github.com/ten-cua-ban/pdf-converter-app"
-"Bug Tracker" = "https://github.com/ten-cua-ban/pdf-converter-app/issues"
-
-
-# [4] Dependencies tùy chọn (Rất hữu ích cho môi trường phát triển)
-# Cho phép cài đặt các nhóm package khác nhau.
-[project.optional-dependencies]
-# Gõ `pip install .[dev]` để cài đặt cả dependency chính và các công cụ dev này.
-dev = [
-    "pytest",       # Framework để viết test
-    "black",        # Tự động format code cho thống nhất
-    "ruff",         # Linter và formatter siêu nhanh, thay thế flake8, isort
-    "mypy",         # Công cụ kiểm tra kiểu tĩnh (static type checking)
-]
-
-
-# ===================================================================
-# [5] Cấu hình cho các công cụ (Tool Configuration)
-# Giúp gom cấu hình của nhiều công cụ vào một file duy nhất.
-# ===================================================================
-
-# --- Cấu hình cho Setuptools ---
-[tool.setuptools.packages.find]
-where = ["."]  # Tìm package trong thư mục gốc
-exclude = ["tests*"] # Loại trừ thư mục test
-
-# Đảm bảo các file không phải .py (như templates, static) được đưa vào package
-[tool.setuptools]
-include-package-data = true
-
-
-# --- Cấu hình cho Black (Code Formatter) ---
-[tool.black]
-line-length = 88
-target-version = ['py38']
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/
-'''
-
-
-# --- Cấu hình cho Ruff (Linter & Formatter) ---
-# Ruff có thể thay thế Black, isort, flake8, pyupgrade, ...
-[tool.ruff]
-line-length = 88
-target-version = "py38"
-
-# Chọn các bộ quy tắc để kiểm tra.
-# E = pycodestyle errors, F = pyflakes, I = isort
-select = ["E", "F", "I"]
-ignore = []
-
-[tool.ruff.format]
-# Tương thích với Black
-quote-style = "double"
-
-# --- Cấu hình cho Pytest (Testing Framework) ---
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra -q --color=yes" # Thêm các tùy chọn mặc định khi chạy pytest
-testpaths = [
-    "tests", # Thư mục chứa các file test
-]
+[theme]
+base = "light"
+primaryColor = "#FF4B4B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+font = "sans serif"
