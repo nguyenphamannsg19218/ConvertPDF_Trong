@@ -2,13 +2,13 @@ import streamlit as st
 import tempfile
 import os
 import subprocess
-from marker.convert import convert_single_pdf  # Sử dụng marker để chuyển PDF sang markdown với OCR và math
+from marker.convert import convert_single_pdf
 from PIL import Image
 import pytesseract
 import pdfplumber
 import io
 
-# Set path cho pytesseract nếu cần fallback OCR
+# Set path cho Tesseract
 pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
 st.title("Chuyển PDF Sang Word - Hỗ Trợ Công Thức Toán Dạng Ảnh Chụp")
@@ -25,10 +25,10 @@ if uploaded_file is not None:
                 with open(pdf_path, "wb") as f:
                     f.write(uploaded_file.getvalue())
 
-                # Sử dụng marker để chuyển PDF sang markdown với OCR toàn bộ (hỗ trợ ảnh chụp và công thức toán)
+                # Chuyển PDF sang markdown với marker (OCR toàn bộ, hỗ trợ math)
                 full_text, images, out_meta = convert_single_pdf(pdf_path, ocr_all_pages=True)
 
-                # Nếu cần fallback OCR cho hình ảnh cụ thể (ví dụ: trang không văn bản)
+                # Fallback OCR bằng pytesseract nếu marker không trích xuất được
                 if not full_text.strip():
                     fallback_text = ""
                     with pdfplumber.open(pdf_path) as pdf:
@@ -44,11 +44,14 @@ if uploaded_file is not None:
                 with open(md_path, "w", encoding="utf-8") as f:
                     f.write(full_text)
 
-                # Chuyển markdown sang docx bằng pandoc (hỗ trợ chuyển LaTeX math sang equation trong Word)
+                # Chuyển markdown sang docx bằng pandoc
                 docx_path = os.path.join(temp_dir, "output.docx")
-                subprocess.run(["pandoc", md_path, "-o", docx_path, "--from=markdown+tex_math_dollars", "--to=docx"], check=True)
+                subprocess.run(
+                    ["pandoc", md_path, "-o", docx_path, "--from=markdown+tex_math_dollars", "--to=docx"],
+                    check=True
+                )
 
-                # Hiển thị nút tải xuống
+                # Tải xuống file Word
                 with open(docx_path, "rb") as f:
                     st.download_button(
                         label="Tải File Word (.docx)",
