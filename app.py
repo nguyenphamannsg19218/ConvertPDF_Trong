@@ -1,6 +1,8 @@
-import io, time, tempfile
-from pathlib import Path
-
+# streamlit_app.py
+import io
+import os
+import time
+import tempfile
 import streamlit as st
 from pdf2image import convert_from_bytes
 from pdf2docx import Converter
@@ -9,132 +11,106 @@ from docx.shared import Inches
 from PIL import Image
 import pytesseract
 
-st.set_page_config(page_title="PDF → Word Converter", page_icon="📄", layout="centered")
+st.set_page_config(page_title="PDF → Word (Visual/Text/Hybrid)", layout="centered")
 
-# ---------------- Utilities ----------------
-def compress_image(image: Image.Image, quality: int = 60) -> Image.Image:
-    """Nén ảnh JPEG để giảm dung lượng."""
-    buf = io.BytesIO()
-    image.save(buf, format="JPEG", optimize=True, quality=int(quality))
-    buf.seek(0)
-    return Image.open(buf)
+def compress_image(image, quality=60):
+    img_io = io.BytesIO()
+    image.save(img_io, format="JPEG", optimize=True, quality=quality)
+    img_io.seek(0)
+    return Image.open(img_io)
 
-def pdf_to_word_visual(pdf_bytes: bytes, dpi: int = 150, quality: int = 60, max_pages: int | None = None) -> bytes:
-    images = convert_from_bytes(pdf_bytes, dpi=int(dpi))
+def pdf_to_word_visual(pdf_bytes, dpi=150, quality=60, max_pages=None):
+    images = convert_from_bytes(pdf_bytes, dpi=dpi)
     if max_pages:
         images = images[:max_pages]
 
     doc = Document()
     for i, img in enumerate(images):
-        img_c = compress_image(img, quality)
-        b = io.BytesIO()
-        img_c.save(b, format="JPEG")
-        b.seek(0)
+        img = compress_image(img, quality)
+        img_byte = io.BytesIO()
+        img.save(img_byte, format="JPEG")
+        img_byte.seek(0)
         if i > 0:
             doc.add_page_break()
-        doc.add_picture(b, width=Inches(6.8))
+        doc.add_picture(img_byte, width=Inches(6.8))
+    out_stream = io.BytesIO()
+    doc.save(out_stream)
+    out_stream.seek(0)
+    return out_stream
 
-    out = io.BytesIO()
-    doc.save(out)
-    out.seek(0)
-    return out.read()
-
-def pdf_to_word_text(pdf_bytes: bytes, max_pages: int | None = None) -> bytes:
+def pdf_to_word_text(pdf_bytes, max_pages=None):
     with tempfile.TemporaryDirectory() as tmpdir:
-        pdf_path = Path(tmpdir) / "input.pdf"
-        out_path = Path(tmpdir) / "output.docx"
-        pdf_path.write_bytes(pdf_bytes)
-
-        cv = Converter(str(pdf_path))
+        pdf_path = os.path.join(tmpdir, "input.pdf")
+        out_path = os.path.join(tmpdir, "output.docx")
+        with open(pdf_path, "wb") as f:
+            f.write(pdf_bytes)
+        cv = Converter(pdf_path)
         if max_pages:
-            cv.convert(str(out_path), start=0, end=max_pages - 1)
+            cv.convert(out_path, start=0, end=max_pages-1)
         else:
-            cv.convert(str(out_path))
+            cv.convert(out_path)
         cv.close()
+        with open(out_path, "rb") as f:
+            return io.BytesIO(f.read())
 
-        return out_path.read_bytes()
-
-def pdf_to_word_hybrid(
-    pdf_bytes: bytes,
-    dpi: int = 150,
-    quality: int = 60,
-    lang: str = "eng",
-    max_pages: int | None = None,
-) -> bytes:
-    images = convert_from_bytes(pdf_bytes, dpi=int(dpi))
+def pdf_to_word_hybrid(pdf_bytes, dpi=150, quality=60, lang="eng", max_pages=None):
+    images = convert_from_bytes(pdf_bytes, dpi=dpi)
     if max_pages:
         images = images[:max_pages]
 
     doc = Document()
     for i, img in enumerate(images):
-        # chèn ảnh trang
-        img_c = compress_image(img, quality)
-        b = io.BytesIO()
-        img_c.save(b, format="JPEG")
-        b.seek(0)
+        img = compress_image(img, quality)
+        img_byte = io.BytesIO()
+        img.save(img_byte, format="JPEG")
+        img_byte.seek(0)
+
         if i > 0:
             doc.add_page_break()
-        doc.add_picture(b, width=Inches(6.8))
+        doc.add_picture(img_byte, width=Inches(6.8))
 
-        # OCR text
-        try:
-            text = pytesseract.image_to_string(img, lang=lang).strip()
-        except Exception as e:
-            text = f"[OCR error: {e}]"
+        # OCR text từ ảnh
+        text = pytesseract.image_to_string(img, lang=lang).strip()
         if text:
             doc.add_paragraph("\n" + text)
 
-    out = io.BytesIO()
-    doc.save(out)
-    out.seek(0)
-    return out.read()
+    out_stream = io.BytesIO()
+    doc.save(out_stream)
+    out_stream.seek(0)
+    return out_stream
 
-# ---------------- UI ----------------
-st.title("📄 PDF → Word")
-st.caption("Visual (chèn ảnh), Text (pdf2docx), hoặc Hybrid (ảnh + OCR). Chạy thuần Streamlit.")
+st.title("PDF → Word Converter")
+st.write("Chọn chế độ: hình ảnh (Visual), trích text (Text), hoặc kết hợp OCR (Hybrid).")
 
 with st.sidebar:
-    st.header("Tuỳ chọn")
     mode = st.selectbox("Chế độ", ["visual", "text", "hybrid"])
-    dpi = st.number_input("DPI (visual/hybrid)", min_value=72, max_value=600, value=150, step=1)
-    quality = st.slider("JPEG quality (visual/hybrid)", 1, 95, 60)
-    max_pages = st.number_input("Số trang tối đa (0 = tất cả)", min_value=0, value=0, step=1)
-    lang = st.text_input("Ngôn ngữ OCR (hybrid)", value="eng")
-    st.markdown("Ví dụ: `eng`, `vie`. (Đã chuẩn bị gói tiếng Việt trên Cloud)")
+    dpi = st.number_input("DPI (ảnh)", min_value=72, max_value=300, value=150, step=10)
+    quality = st.slider("Chất lượng JPEG (%)", min_value=30, max_value=95, value=60, step=5)
+    max_pages = st.number_input("Giới hạn số trang (0 = tất cả)", min_value=0, value=0, step=1)
+    lang = st.text_input("Ngôn ngữ OCR (ví dụ: eng, vie, eng+vie)", value="eng")
 
-uploaded = st.file_uploader("Chọn file PDF", type=["pdf"])
-convert = st.button("Convert")
+file = st.file_uploader("Tải lên file PDF", type=["pdf"])
 
-if convert:
-    if not uploaded:
-        st.error("Vui lòng chọn file PDF.")
-        st.stop()
+if file:
+    pdf_bytes = file.read()
+    if st.button("Convert"):
+        start = time.time()
+        try:
+            mp = int(max_pages) if max_pages else 0
+            mp = mp if mp > 0 else None
 
-    pdf_bytes = uploaded.read()
-    maxp = int(max_pages) or None
-    start = time.time()
-
-    try:
-        with st.spinner("Đang chuyển đổi..."):
             if mode == "visual":
-                data = pdf_to_word_visual(pdf_bytes, dpi=dpi, quality=quality, max_pages=maxp)
-                out_name = uploaded.name.replace(".pdf", "_visual.docx")
+                out_stream = pdf_to_word_visual(pdf_bytes, dpi=dpi, quality=quality, max_pages=mp)
+                out_name = file.name.replace(".pdf", "_visual.docx")
             elif mode == "text":
-                data = pdf_to_word_text(pdf_bytes, max_pages=maxp)
-                out_name = uploaded.name.replace(".pdf", "_text.docx")
-            else:
-                data = pdf_to_word_hybrid(pdf_bytes, dpi=dpi, quality=quality, lang=lang, max_pages=maxp)
-                out_name = uploaded.name.replace(".pdf", "_hybrid.docx")
+                out_stream = pdf_to_word_text(pdf_bytes, max_pages=mp)
+                out_name = file.name.replace(".pdf", "_text.docx")
+            else:  # hybrid
+                out_stream = pdf_to_word_hybrid(pdf_bytes, dpi=dpi, quality=quality, lang=lang, max_pages=mp)
+                out_name = file.name.replace(".pdf", "_hybrid.docx")
 
-        st.success(f"Xong trong {time.time() - start:.1f}s")
-        st.download_button(
-            "⬇️ Tải file Word",
-            data=data,
-            file_name=out_name,
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        )
-    except Exception as e:
-        st.exception(e)
-        st.info(
-            "Nếu lỗi liên quan Poppler/Tesseract, kiểm tra `packages.txt` (poppler-utils, tesseract-ocr, tesseract-ocr-vie) và redeploy."
-        )
+            st.success(f"Xong trong {time.time()-start:.1f}s")
+            st.download_button("Tải file DOCX", data=out_stream, file_name=out_name,
+                               mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        except Exception as e:
+            st.error(f"Lỗi: {e}")
