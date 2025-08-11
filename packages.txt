@@ -1,12 +1,5 @@
-# OCR + ngôn ngữ
+
 tesseract-ocr
 tesseract-ocr-eng
 tesseract-ocr-vie
-
-# Poppler để pdf2image dùng pdftoppm
 poppler-utils
-
-# (Tuỳ chọn) Cái này app hiện không dùng, có thể bỏ để build nhanh hơn
-# imagemagick
-# texlive
-# pandoc
