@@ -11,3 +11,6 @@ pdf2docx
 python-docx
 Pillow
 pytesseract
+poppler-utils
+tesseract-ocr
+tesseract-ocr-vie
