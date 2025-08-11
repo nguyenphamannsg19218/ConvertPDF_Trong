@@ -1,16 +1,12 @@
+# OCR + ngôn ngữ
 tesseract-ocr
 tesseract-ocr-eng
 tesseract-ocr-vie
-imagemagick
-texlive
-pandoc
-streamlit==1.38.0
-rich==13.7.1
-pdf2image
-pdf2docx
-python-docx
-Pillow
-pytesseract
+
+# Poppler để pdf2image dùng pdftoppm
 poppler-utils
-tesseract-ocr
-tesseract-ocr-vie
+
+# (Tuỳ chọn) Cái này app hiện không dùng, có thể bỏ để build nhanh hơn
+# imagemagick
+# texlive
+# pandoc
