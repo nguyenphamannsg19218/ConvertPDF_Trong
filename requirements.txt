@@ -1,7 +1,6 @@
-streamlit==1.38.0
-rich==13.7.1
-pdf2image
+streamlit
 pdf2docx
+pdf2image
 python-docx
 Pillow
 pytesseract
