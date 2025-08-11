@@ -4,3 +4,10 @@ tesseract-ocr-vie
 imagemagick
 texlive
 pandoc
+streamlit==1.38.0
+rich==13.7.1
+pdf2image
+pdf2docx
+python-docx
+Pillow
+pytesseract
